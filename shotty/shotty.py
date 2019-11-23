@@ -1,5 +1,6 @@
 #import part - imports functions/modules needed for the project
 import boto3
+import botocore
 import click
 
 #initialised variables for the Project
@@ -34,10 +35,12 @@ def snapshots():
 @snapshots.command('slist')
 @click.option('--project', default=None,
     help="Only snapshots for project (tag Project:<name>)")
+@click.option('--all', 'list_all', default=False, is_flag=True,
+    help="List all snapshots for each volume (tag Project:<name>)")
 
 #function definition for the script
 #must define the project/tag name to run the function
-def list_snapshots(project):
+def list_snapshots(project, list_all):
     #python text list_volumes
     "List EC2 snapshots"
 
@@ -55,6 +58,7 @@ def list_snapshots(project):
                 s.start_time.strftime("%c")
                 )))
 
+                if s.state == 'completed' and not list_all: break
     return
 
 
@@ -114,9 +118,17 @@ def create_snapshots(project):
     instances = filter_instances(project)
 
     for i in instances:
+        print("Stopping {0}....".format(i.id))
+        i.stop()
+        i.wait_until_stopped()
         for v in i.volumes.all():
             print("Creating snapshot of {0}".format(v.id))
-            v.create_snapshot(Description-"Created by Shotty")
+            v.create_snapshot(Description="Created by Shotty")
+        print("Starting {0}....".format(i.id))
+        i.start()
+        i.wait_until_running()
+
+    print("Snapshots Created Successfully!")
     return
 
 @instances.command('list')
@@ -162,7 +174,11 @@ def stop_instances(project):
 
         for i in instances:
             print("Stopping {0}...".format(i.id))
-            i.stop()
+            try:
+                i.stop()
+            except botocore.exceptions.ClientError as e:
+                print(" Could not stop {0}.".format(i.id) + str(e))
+                continue
 
         return
 
@@ -181,7 +197,11 @@ def start_instances(project):
 
         for i in instances:
             print("Starting {0}...".format(i.id))
-            i.start()
+            try:
+                i.start()
+            except botocore.exceptions.ClientError as e:
+                print(" Could not start {0}.".format(i.id) + str(e))
+                continue
 
         return
 
