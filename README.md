@@ -15,5 +15,7 @@ shotty users the configuration file created by the AWS cli. e.g.
 
 pipenv run python shotty/shotty.py <command> --project=<project name>
 
-*command* list, start, stop
+*commands for instances* list, start, stop
+*commands for volumes* vlist
+*commands for snapshots* slist, snapshot
 *project* depends on your project name

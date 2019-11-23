@@ -6,7 +6,7 @@ import click
 session = boto3.Session(profile_name = 'shotty')
 ec2 = session.resource('ec2')
 
-#filters the isntances
+#filters the instances
 def filter_instances(project):
     #create a blank list
     instances = []
@@ -23,14 +23,101 @@ def filter_instances(project):
 
     return instances
 
-#click functions - wraps the functions
-@click.group()
+###########################################
+##### SNAPSHOTS #####
+###########################################
+
+@click.group('snapshots')
+def snapshots():
+    """Commands for snapshots"""
+
+@snapshots.command('slist')
+@click.option('--project', default=None,
+    help="Only snapshots for project (tag Project:<name>)")
+
+#function definition for the script
+#must define the project/tag name to run the function
+def list_snapshots(project):
+    #python text list_volumes
+    "List EC2 snapshots"
+
+    instances = filter_instances(project)
+
+    for i in instances:
+        for v in i.volumes.all():
+            for s in v.snapshots.all():
+                print(", ".join((
+                s.id,
+                v.id,
+                i.id,
+                s.state,
+                s.progress,
+                s.start_time.strftime("%c")
+                )))
+
+    return
+
+
+###########################################
+##### VOLUMES #####
+###########################################
+
+#click functions - wraps the functions - volumes
+@click.group('volumes')
+def volumes():
+    """Commands for volumes"""
+
+@volumes.command('vlist')
+@click.option('--project', default=None,
+    help="Only volumes for project (tag Project:<name>)")
+
+#function definition for the script
+#must define the project/tag name to run the function
+def list_volumes(project):
+    #python text list_volumes
+    "List EC2 volumes"
+
+    instances = filter_instances(project)
+
+    for i in instances:
+        for v in i.volumes.all():
+            print(", ".join((
+            v.id,
+            i.id,
+            v.state,
+            str(v.size) + "GB",
+            v.encrypted and "Encrypted" or "Not Encrypted"
+            )))
+
+    return
+
+###########################################
+##### INSTANCES #####
+###########################################
+
+#click functions - wraps the functions - instances
+@click.group('instances')
 def instances():
     """Commands for instances"""
 
 ###########################################
 #beginning of the 'list' command
 ###########################################
+
+@instances.command('snapshot', help="Create snapshots of all volumes")
+@click.option('--project', default=None,
+    help="Only instances for project (tag Project:<name>)")
+
+def create_snapshots(project):
+    "Create snapshots for EC2 instances"
+
+    instances = filter_instances(project)
+
+    for i in instances:
+        for v in i.volumes.all():
+            print("Creating snapshot of {0}".format(v.id))
+            v.create_snapshot(Description-"Created by Shotty")
+    return
 
 @instances.command('list')
 @click.option('--project', default=None,
@@ -68,7 +155,7 @@ def list_instances(project):
     help="Only instances for project (tag Project:<name>)")
 
 def stop_instances(project):
-        #python text list_instances
+
         "Stop EC2 Instances"
 
         instances = filter_instances(project)
@@ -87,9 +174,8 @@ def stop_instances(project):
 @click.option('--project', default=None,
     help="Only instances for project (tag Project:<name>)")
 
-def stop_instances(project):
-        #python text list_instances
-        "Stop EC2 Instances"
+def start_instances(project):
+        "Start EC2 Instances"
 
         instances = filter_instances(project)
 
@@ -99,5 +185,7 @@ def stop_instances(project):
 
         return
 
+cli = click.CommandCollection(sources=[snapshots, volumes, instances])
+
 if __name__ == '__main__':
-    instances()
+    cli()
